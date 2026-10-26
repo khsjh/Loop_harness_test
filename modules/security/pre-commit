@@ -1,0 +1,33 @@
+#!/bin/sh
+# Inspect the index selected by Git, including temporary commit indexes.
+fail() {
+    printf '%s\n' "pre-commit: $1" >&2
+    exit 1
+}
+
+# Preserve relative index paths when changing from a subdirectory to the root.
+if [ "${GIT_INDEX_FILE+x}" = x ]; then
+    case "$GIT_INDEX_FILE" in
+        /*) ;;
+        *) GIT_INDEX_FILE="$PWD/$GIT_INDEX_FILE"; export GIT_INDEX_FILE ;;
+    esac
+fi
+
+repo_root=$(git rev-parse --show-toplevel) || fail 'Cannot find the Git working tree.'
+cd "$repo_root" || fail 'Cannot enter the Git working tree.'
+command -v gitleaks >/dev/null 2>&1 || fail 'Gitleaks is required. Install it and check PATH.'
+[ -f .gitleaks.toml ] && [ -r .gitleaks.toml ] || fail 'Missing or unreadable .gitleaks.toml.'
+
+# Validate Git/index access independently of the scanner's error handling.
+git diff --cached --quiet --no-ext-diff
+diff_status=$?
+case "$diff_status" in
+    0|1) ;;
+    *) fail 'Cannot read the staged changes.' ;;
+esac
+
+if gitleaks git --pre-commit --staged --config .gitleaks.toml \
+    --redact=100 --exit-code=1 --no-banner .; then
+    exit 0
+fi
+fail 'Secret scan failed. Resolve the findings or scanner error, then stage any fixes and retry.'

@@ -1,0 +1,64 @@
+# 운영체제에서 생성하는 파일
+.DS_Store
+Thumbs.db
+
+# 임시 파일
+*.swp
+*.swo
+
+# 로컬 대화·승인·실행 기록
+/dialog/*
+/approvals/*
+/runs/*
+!/dialog/.gitkeep
+!/approvals/.gitkeep
+!/runs/.gitkeep
+
+# 공개 문서만 공유. 내부 milestone·검토·작업 기록은 원래 위치에 보존한다.
+# 새 공개 문서는 내용 검토 후 아래 목록에 추가한다.
+/docs/*
+!/docs/usage.md
+!/docs/architecture.md
+!/docs/validation.md
+!/docs/sharing.md
+
+# 실제 CLI권한·교차 리뷰 시험에서 생성된 작업 폴더
+/modules/tests/fixtures/live-*/
+/modules/tests/fixtures/permission-*/
+/modules/tests/fixtures/m5-live-*/
+/modules/tests/fixtures/m6-live-*/
+/modules/tests/fixtures/m6-review-*/
+/modules/tests/fixtures/m6-ops-*/
+/modules/tests/fixtures/m6-diverse-live-*/
+/modules/tests/fixtures/m6-diversity-*/
+/modules/tests/fixtures/read-boundary-*/
+
+# Python 캐시 (Python 바이트코드)
+__pycache__/
+*.py[cod]
+
+# 테스트·분석 도구의 생성 결과
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+/htmlcov/
+/coverage.xml
+
+# 로컬 가상환경
+/.venv/
+/venv/
+
+# 로컬 환경변수·인증 정보
+.env
+.env.*
+!.env.example
+!.env.sample
+/.aws/
+/.codex/
+/.claude/
+/.ssh/
+/.netrc
+/credentials/
+/secrets/
