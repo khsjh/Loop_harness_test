@@ -1,0 +1,9 @@
+#!/bin/sh
+# Git supplies local/remote ref OIDs on stdin; preserve it for the checker.
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+cd "$repo_root" || exit 1
+command -v python3 >/dev/null 2>&1 || {
+    printf '%s\n' 'pre-push: Python 3 is required for the email policy check.' >&2
+    exit 1
+}
+exec python3 -B "$repo_root/modules/security/check_emails.py" pre-push

@@ -1,4 +1,4 @@
-"""Connect this checkout's secret-scanning hook without replacing existing hooks."""
+"""Connect this checkout's secret and email-policy hooks without replacing existing hooks."""
 import argparse
 import os
 from pathlib import Path
@@ -39,9 +39,15 @@ def install(root=PROJECT_ROOT, *, check=False):
         raise InstallError("This project is not an accessible Git working tree. Initialize or clone it first.") from exc
     if actual != root:
         raise InstallError("The project directory must be the Git working-tree root.")
-    hook = root / HOOKS_PATH / "pre-commit"
-    if not hook.is_file() or not os.access(hook, os.X_OK):
-        raise InstallError("modules/security/pre-commit must exist and be executable.")
+    for name in ("pre-commit", "pre-push"):
+        hook = root / HOOKS_PATH / name
+        if not hook.is_file() or not os.access(hook, os.X_OK):
+            raise InstallError(f"modules/security/{name} must exist and be executable.")
+    checker = root / HOOKS_PATH / "check_emails.py"
+    if not checker.is_file() or not os.access(checker, os.R_OK):
+        raise InstallError("modules/security/check_emails.py must exist and be readable.")
+    if not shutil.which("python3"):
+        raise InstallError("Python 3 is required for the email policy check.")
     config = root / ".gitleaks.toml"
     try:
         with config.open("rb") as stream:

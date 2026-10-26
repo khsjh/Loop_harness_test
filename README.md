@@ -8,7 +8,7 @@ The project records task authorization, execution evidence, and the final questi
 
 ## Current scope
 
-Implemented features include single calls, bounded implementation/review loops, approval checks, isolated verification, execution reports, and recording recovery. The regression suite contains 205 tests (including 22 secret-hook checks), plus 18 dialog-saver checks. See [validation and limitations](docs/validation.md) for results and supported environments.
+Implemented features include single calls, bounded implementation/review loops, approval checks, isolated verification, execution reports, and recording recovery. The regression suite contains 232 tests (including 22 secret-hook and 27 email-policy checks), plus 18 dialog-saver checks. See [validation and limitations](docs/validation.md) for results and supported environments.
 
 Default ceilings are 6 rounds, 24 hours per run, and 6 hours per model call. These are configured limits; a 6-hour model call and 24-hour continuous operation have not been validated.
 
@@ -95,7 +95,7 @@ Before each push, after commits exist, scan the history reachable from all local
 gitleaks git --log-opts="--all" --config .gitleaks.toml --redact .
 ```
 
-Resolve findings and scan errors before pushing. `pre-commit` can be skipped with `--no-verify`, and it is not guaranteed to run when changes arrive through merge, rebase, or cherry-pick. The history scan supplements the hook; it does not remove the file-format limitations below.
+Resolve findings and scan errors before pushing. `pre-commit` and `pre-push` can be skipped with the respective command's `--no-verify`. Commit-time checking is not guaranteed when changes arrive through merge, rebase, or cherry-pick. The history scan supplements the hook; it does not remove the file-format limitations below.
 
 To enable automatic checks in an existing Git checkout, install the project hook on each PC:
 
@@ -105,11 +105,13 @@ python3 modules/security/install_hooks.py
 git config --local --get core.hooksPath
 ```
 
-`--check` checks prerequisites and conflicts without changing settings. Installation sets the repository-local hook path to `modules/security`; it does not initialize Git or install Gitleaks. The hook must be executable, and Gitleaks must be on `PATH`. The installer refuses conflicting hook paths or existing default hook files instead of replacing them. Repeating the installation with the same configuration is safe.
+`--check` checks prerequisites and conflicts without changing settings. Installation sets the repository-local hook path to `modules/security`; it does not initialize Git or install Gitleaks. Both hooks must be executable, and Python 3 and Gitleaks must be on `PATH`. The installer refuses conflicting hook paths or existing default hook files instead of replacing them. Repeating the installation with the same configuration is safe.
 
-The hook scans staged changes, including the first commit. Findings, a missing scanner/configuration, and scan errors block the commit. It masks detected secret values and does not modify or stage files. If a secret was staged, remove it and stage the corrected file before retrying. The scan uses the working tree's `.gitleaks.toml` and Git's selected index.
+The pre-commit hook checks the effective author and committer email addresses, then scans staged changes, including the first commit. Findings, a missing scanner/configuration, and scan errors block the commit. It masks detected secret values and does not modify or stage files. If a secret was staged, remove it and stage the corrected file before retrying. The scan uses the working tree's `.gitleaks.toml` and Git's selected index.
 
-The hook scans Git diffs and does not extract document text. A clean scan does not establish that binary files, Office documents (`.docx`, `.pptx`, `.xlsx`), or PDFs contain no secrets. Archive traversal is disabled by default (`--max-archive-depth=0`); the current commands do not enable it, so ZIP contents are not automatically unpacked either. Review such files and any separately extracted text before sharing them, and leave unnecessary generated documents out of the repository.
+The secret scanner reads Git diffs and does not extract document text. A clean scan does not establish that binary files, Office documents (`.docx`, `.pptx`, `.xlsx`), or PDFs contain no secrets. Archive traversal is disabled by default (`--max-archive-depth=0`); the current commands do not enable it, so ZIP contents are not automatically unpacked either. Review such files and any separately extracted text before sharing them, and leave unnecessary generated documents out of the repository.
+
+The email policy accepts GitHub noreply address formats by default, plus the exact `noreply@github.com` service address only in the committer role. This exception does not authenticate GitHub provenance. Other addresses require explicit repository-local `harness.publicEmail` entries after a public-use decision. The pre-push hook checks every outgoing commit's author and committer, plus annotated taggers. New remote refs trigger a full ancestry check; incomplete history fails closed. The checker does not print private email values, rewrite commits, or query GitHub account settings. A local policy pass does not verify address ownership or guarantee GitHub acceptance. History secret scanning remains a separate step. See the [email policy and existing-commit guidance](docs/sharing.md).
 
 Hook source files are shared through Git; each checkout still needs installation. Inspect `modules/security/` before installing. Before integrating fetched changes through merge, rebase, or checkout, review changes to this directory, including new executable hook names. For updates, fetch and review first instead of applying an unreviewed pull: an executable hook such as `post-merge` added to this configured directory can run on the corresponding Git event. CI integration remains future work. Keep credentials and actual conversation records local. See the [hook operation and sharing guidance](docs/sharing.md).
 

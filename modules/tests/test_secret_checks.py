@@ -22,10 +22,11 @@ class HookCase(unittest.TestCase):
         self.repo.mkdir()
         self.env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "GITLEAKS_"))}
         self.env.update(GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_NOSYSTEM="1",
-                        GIT_AUTHOR_NAME="Hook Test", GIT_AUTHOR_EMAIL="hook@example.invalid",
-                        GIT_COMMITTER_NAME="Hook Test", GIT_COMMITTER_EMAIL="hook@example.invalid")
+                        GIT_AUTHOR_NAME="Hook Test", GIT_AUTHOR_EMAIL="123+hook-test@users.noreply.github.com",
+                        GIT_COMMITTER_NAME="Hook Test", GIT_COMMITTER_EMAIL="123+hook-test@users.noreply.github.com")
         self.git("init", "--quiet", "--template=")
-        for name in ("modules/security/pre-commit", "modules/security/install_hooks.py", ".gitleaks.toml"):
+        for name in ("modules/security/pre-commit", "modules/security/pre-push",
+                     "modules/security/check_emails.py", "modules/security/install_hooks.py", ".gitleaks.toml"):
             target = self.repo / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, target)
@@ -34,6 +35,7 @@ class HookCase(unittest.TestCase):
         self.bin = self.base / "bin"
         self.bin.mkdir()
         (self.bin / "git").symlink_to(shutil.which("git"))
+        (self.bin / "python3").symlink_to(sys.executable)
         self.fake = self.bin / "gitleaks"
         self.fake.write_text('#!/bin/sh\nif [ "$1" = version ]; then echo v8.30.1; exit 0; fi\nexit 0\n')
         self.fake.chmod(0o755)
