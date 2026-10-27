@@ -316,9 +316,11 @@ class GuardAndStoreTests(M5Case):
     def test_controller_sigkill_keeps_guard_and_never_replays_call(self):
         request_file = self.root / "request.json"
         request_file.write_text(json.dumps(self.request))
+        ready = self.root / "fake-ready"
         controller = subprocess.Popen([sys.executable, "-B", "-m", "modules.tests.fixtures.m5_crash_driver",
                                        str(self.root), str(request_file), str(self.approval)],
-                                      cwd=HARNESS_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                      cwd=HARNESS_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      env=dict(os.environ, M5_FAKE_READY=str(ready)))
         model_pid = None
         try:
             deadline = time.monotonic() + 8
@@ -332,7 +334,8 @@ class GuardAndStoreTests(M5Case):
                             cmdline = Path(f"/proc/{candidate}/cmdline").read_bytes()
                         except OSError:
                             continue
-                        if b"--output-last-message" in cmdline:
+                        if (b"--output-last-message" in cmdline and ready.exists()
+                                and ready.read_text() == str(candidate)):
                             model_pid = candidate
                             break
                 time.sleep(0.02)

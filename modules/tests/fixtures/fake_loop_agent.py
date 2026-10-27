@@ -26,6 +26,10 @@ if mode == "malformed":
     sys.exit(0)
 role = request["role"]
 if mode == "hang":
+    if os.environ.get("M5_FAKE_READY"):
+        # SIGKILL tests wait until stdin has been consumed. Killing the
+        # controller earlier can deliver partial JSON/EOF instead of a hang.
+        Path(os.environ["M5_FAKE_READY"]).write_text(str(os.getpid()))
     time.sleep(30)
 if role == "implementer":
     if mode not in {"needs_user", "fail_tests"} and not (mode == "fix_second" and request["round"] == 1):
