@@ -4,11 +4,50 @@
 
 ## 1. 실행 환경과 자료 배치
 
+### 의존성 일괄 설치와 호환성 검사
+
+최소 설치 대상은 Linux x86_64, glibc 2.35 이상이다. 자동 시스템 패키지 설치는 Debian/Ubuntu의 apt를 사용한다. 설치 시작에는 Bash와 Python 3.10 이상, CA 인증서와 HTTPS 접속이 필요하다. Python이 없는 최소 OS 이미지에서는 먼저 `sudo apt-get install python3 ca-certificates`를 실행한다. 실행용 controller Python은 별도로 설치한다.
+
+```sh
+bash install.sh
+source "$HOME/.local/share/loop-harness/deps/env.sh"
+bash install.sh --check
+```
+
+`modules/setup/dependencies.json`에 시스템·CLI 의존성의 버전·다운로드 주소·SHA256을 기록한다. Gitleaks·bubblewrap·두 CLI는 Python 패키지가 아니며, 하네스는 외부 Python 패키지를 요구하지 않는다. 루트의 `install.sh`가 이 목록을 읽는 `modules/setup/dependencies.py`를 실행한다. 루트 설치 진입점은 LAY-001의 예외이며, 지원 구현과 테스트는 `modules/` 아래에 둔다.
+
+| 구성 요소 | 정책 | 설치 방식 |
+|---|---|---|
+| controller Python | >=3.11,<3.13, 신규 설치 3.12.13 고정 | uv 관리 런타임, 시스템 Python과 분리 |
+| Gitleaks | 8.30.1 고정 | 공식 Linux x64 바이너리, SHA256 확인 |
+| Codex CLI | 0.163.0 고정 | 공식 Linux x86_64 musl 바이너리, SHA256 확인 |
+| Claude Code | 2.1.310 고정 | 공식 Linux x64 바이너리, SHA256 확인 |
+| uv | 0.11.26 고정, 설치 시에만 필요 | 공식 바이너리, SHA256 확인 |
+| Git / Bash / bubblewrap | 각각 >=2.34 / >=5.1 / >=0.6.1 | 누락된 apt 패키지 설치, 실제 버전 검사 |
+| CA 인증서 / libatomic1 / libstdc++6 | 배포판 패키지 | apt로 누락 여부 확인 |
+
+위 최소값은 설치 허용 범위이며 모든 버전 조합을 검증했다는 뜻은 아니다. 실제 시험 조합과 한계는 [검증 문서](validation.md#의존성-설치-검증)를 따른다. CLI는 API·권한 옵션 변경을 막기 위해 정확한 버전을 요구하고, 시스템 패키지는 배포판 보안 업데이트를 허용하되 기능 검사를 수행한다. 고정 버전은 최신 릴리스 보장이 아니다. 갱신 시 공식 배포 정보와 SHA256을 함께 수정하고 설치·회귀·권한 검사를 다시 수행한다.
+
+설치 위치 기본값은 `$HOME/.local/share/loop-harness/deps`이다. `--prefix '/원하는/설치 경로'`로 변경할 수 있다. 도구는 이 경로에 두고 기존 전역 CLI·로그인·shell 시작 파일·Git 설정을 변경하지 않는다. 부족한 시스템 패키지는 apt로 설치하므로 sudo가 필요할 수 있다. 이미 설치된 시스템 패키지가 최소 버전보다 낮으면 OS/패키지 갱신을 요구하고 중단한다. Node.js/npm은 필요 없다.
+
+`env.sh`는 설치한 `bin`을 PATH 앞에 놓고 Claude 자동 업데이트를 비활성화한다. 하네스와 Git hook을 실행할 각 shell에서 source한다. 다른 terminal/GUI가 별도 PATH를 사용하면 그 환경에서도 같은 경로를 제공해야 한다. Python 검증 자식 프로세스의 `runtime_paths`는 요청에서 별도로 지정하며, controller Python 설치가 이를 자동 변경하지 않는다.
+
+- `--dry-run`: 목록과 설치 경로만 출력한다. 다운로드·설치·실행 검사를 하지 않는다.
+- `--check`: 현재 PATH의 도구를 검사한다. `--prefix`를 주어도 PATH를 자동 변경하지 않는다. 임시 합성 저장소를 생성하고 검사 후 정리한다.
+- 기본 설치: SHA256 검증 후 바이너리를 배치하고, CLI 필수 옵션·Python 모듈·Gitleaks의 정상 입력 허용/합성 토큰 차단(파일과 Git staged 각각)·harness의 실제 bubblewrap probe를 실행한다. namespace 실패도 skip 없이 실패 처리한다.
+- 실패하면 0이 아닌 종료 코드를 반환한다. 이미 설치된 파일은 재시도를 위해 남긴다. 동일 버전은 재사용하고 검사를 다시 수행한다. 다른 버전이나 외부 바이너리 symlink와 충돌하면 덮어쓰지 않고 새 prefix를 요구한다.
+
+로그인·모델 사용 권한·실제 모델 호출·버전 변경 후 모델 권한 경계 검증은 설치 검사 밖이다. 설치 성공이 실제 작업 실행 성공을 보장하지 않는다. Git hook 연결은 별도이며, 환경 활성화 후 `python3 -B modules/security/install_hooks.py --check`로 점검하고 같은 명령에서 `--check`를 빼면 연결한다.
+
+공식 근거: [Python tomllib](https://docs.python.org/3/library/tomllib.html), [Codex CLI](https://learn.chatgpt.com/docs/codex/cli), [Codex 고정 릴리스](https://github.com/openai/codex/releases/tag/rust-v0.163.0), [Claude 설치·배포 검증](https://code.claude.com/docs/en/setup), [Gitleaks 고정 릴리스](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1), [uv Python 설치](https://docs.astral.sh/uv/guides/install-python/). 네이티브 배포물 SHA256은 공식 GitHub 릴리스 메타데이터와 Claude 버전별 manifest에서 가져온다.
+
+### 실행 자료 배치
+
 프로젝트 루트에서 Python 3로 실행한다. 독립 검증은 Linux x86_64와 bubblewrap을 사용한다. `codex`, `claude`, `bwrap`이 PATH에 있어야 하며, CLI 로그인과 요청 모델 사용 권한은 별도로 유효해야 한다. CLI 버전이 바뀌면 권한·통합 검증을 다시 확인한다. 중첩 sandbox가 network namespace 생성을 막으면 `unsupported_configuration`으로 종료한다. 격리를 끄지 말고 해당 기능을 허용한 실행 환경을 사용한다.
 
 - controller: `approvals/`에 원문·승인, `runs/`에 실행 근거, `dialog/`에 최종 대화를 보관한다.
 - target workspace: 변경할 코드와 보호 테스트를 둔다. controller의 위 데이터 디렉터리와 겹칠 수 없다.
-- 스크립트: `modules/`, 테스트: `modules/tests/`, 문서: `docs/`에 둔다.
+- 스크립트: `modules/`, 테스트: `modules/tests/`, 문서: `docs/`에 둔다. 설치 진입점 `install.sh`만 프로젝트 루트에 둔다.
 - 검증 중 target은 읽기 전용이다. 임시 산출물은 private `/tmp`를 사용한다. target에 빌드 결과를 쓰는 작업은 현재 지원 범위 밖이다.
 
 다음 명령의 대문자 값은 실제 절대 경로와 새로운 식별자로 바꾼다. 기존 실행의 ID를 재사용하지 않는다.

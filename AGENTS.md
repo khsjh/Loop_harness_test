@@ -11,7 +11,8 @@ You are running inside `loop_harness`. This file is the authoritative instructio
 
 ## LAY-001 — Script locations
 
-- Store all project scripts, including test scripts and command entry points, under `<project-root>/modules/`.
+- Store all project scripts, including test scripts and command entry points, under `<project-root>/modules/`, with the sole exception below.
+- Allow `<project-root>/install.sh` as the root installation entry point. Keep its supporting implementation under `<project-root>/modules/`. This exception does not extend to `Makefile` or other root entry points.
 - Organize related scripts in subdirectories, such as `modules/harness/` and `modules/harness/adapters/`. Store test scripts in `modules/tests/`.
 - The shared dialog saver is `modules/save_dialog.py`. Public guides and local-only milestone documents remain in `docs/`; only reviewed public guides are shared under SHR-001. Dialog records remain in the project-root `dialog/`.
 - Store caller-owned approval registries, execution-permission traces, and user-message source files in the project-root `approvals/`. Existing dialog sources stay in `dialog/`; per-call source snapshots belong with harness-owned execution evidence and state in the project-root `runs/<run_id>/`. These are data directories, not script locations.

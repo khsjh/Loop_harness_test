@@ -1,0 +1,81 @@
+{
+  "format": "loop-harness-system-requirements-v1",
+  "description": "System and CLI dependencies for the root install.sh entry point. No third-party Python packages.",
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64",
+    "glibc_minimum": "2.35"
+  },
+  "python": {
+    "minimum": "3.11.0",
+    "maximum_exclusive": "3.13.0",
+    "install_version": "3.12.13"
+  },
+  "system": {
+    "bash": {
+      "minimum": "5.1.0",
+      "version_args": [
+        "--version"
+      ]
+    },
+    "git": {
+      "minimum": "2.34.0",
+      "version_args": [
+        "--version"
+      ]
+    },
+    "bwrap": {
+      "minimum": "0.6.1",
+      "version_args": [
+        "--version"
+      ]
+    }
+  },
+  "apt_packages": [
+    "python3",
+    "ca-certificates",
+    "git",
+    "bubblewrap",
+    "bash",
+    "libatomic1",
+    "libstdc++6"
+  ],
+  "tools": {
+    "uv": {
+      "version": "0.11.26",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.11.26/uv-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "6426a73c3837e6e2483ee344cbc00f36394d179afcba6183cb77437e67db4af0",
+      "member": "uv-x86_64-unknown-linux-gnu/uv",
+      "version_args": [
+        "--version"
+      ]
+    },
+    "gitleaks": {
+      "version": "8.30.1",
+      "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
+      "sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+      "member": "gitleaks",
+      "version_args": [
+        "version"
+      ]
+    },
+    "codex": {
+      "version": "0.163.0",
+      "url": "https://github.com/openai/codex/releases/download/rust-v0.163.0/codex-x86_64-unknown-linux-musl.tar.gz",
+      "sha256": "beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4",
+      "member": "codex-x86_64-unknown-linux-musl",
+      "version_args": [
+        "--version"
+      ]
+    },
+    "claude": {
+      "version": "2.1.310",
+      "url": "https://downloads.claude.ai/claude-code-releases/2.1.310/linux-x64/claude",
+      "sha256": "b73676430af12f97316a798b8371f81d640f90a58bdcb8f3ce56a835bb47df56",
+      "member": null,
+      "version_args": [
+        "--version"
+      ]
+    }
+  }
+}

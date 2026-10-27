@@ -8,19 +8,33 @@ The project records task authorization, execution evidence, and the final questi
 
 ## Current scope
 
-Implemented features include single calls, bounded implementation/review loops, approval checks, isolated verification, execution reports, and recording recovery. The regression suite contains 232 tests (including 22 secret-hook and 27 email-policy checks), plus 18 dialog-saver checks. See [validation and limitations](docs/validation.md) for results and supported environments.
+Implemented features include single calls, bounded implementation/review loops, approval checks, isolated verification, execution reports, and recording recovery. The regression suite contains 248 tests (including 16 dependency-installation, 22 secret-hook and 27 email-policy checks), plus 18 dialog-saver checks. See [validation and limitations](docs/validation.md) for results and supported environments.
 
 Default ceilings are 6 rounds, 24 hours per run, and 6 hours per model call. These are configured limits; a 6-hour model call and 24-hour continuous operation have not been validated.
 
 ## Environment and setup
 
 - Linux x86_64 with Python 3.12 is the tested environment. Windows, macOS, and other architectures are not currently supported by the verification runtime.
-- The harness uses the Python standard library; no third-party Python packages are required for the harness itself.
+- The controller and hooks require Python >=3.11,<3.13 (`tomllib` needs 3.11). The harness uses only the Python standard library.
 - Actual agent loops require `codex`, `claude`, and bubblewrap (`bwrap`) on `PATH`, valid CLI authentication, and access to the requested models.
 - Verification requires Linux namespace support and the runtime files checked by preflight. Tests run with a read-only target workspace, isolated networking, and private temporary directories. Builds that must write into the target are outside the current verification scope.
 - Bash is needed for the dialog-saver test script. Gitleaks is used separately for secret scanning.
 
-Clone or copy the project, then open a terminal in its root directory. The directory name does not need to be `loop_harness`. Run these initial checks from that directory:
+Clone or copy the project, then open a terminal in its root directory. The directory name does not need to be `loop_harness`.
+
+Install the dependencies together on Debian/Ubuntu, Linux x86_64 with glibc >=2.35 and bootstrap Python >=3.10:
+
+```sh
+bash install.sh
+source "$HOME/.local/share/loop-harness/deps/env.sh"
+bash install.sh --check
+```
+
+[modules/setup/dependencies.json](modules/setup/dependencies.json) records system/CLI versions and download checksums. There are no PyPI dependencies. The root `install.sh` invokes the implementation under `modules/setup/`. The installer uses apt for missing system packages (sudo may be needed), verifies SHA256 before installing pinned native binaries, and installs a separate CPython runtime through pinned uv. Node.js/npm are not required. Existing CLI installations, shell startup files, login credentials, and Git settings are not changed. Git hooks are connected separately using the instructions below.
+
+Use `--dry-run` to inspect the manifest and destination, or `--prefix '/path/with spaces/deps'` to choose a destination. Source that destination's `env.sh`. `--check` checks the **current PATH**, regardless of `--prefix`; it creates and removes temporary probes without downloading or changing settings. A failed check returns nonzero, including when namespaces are unavailable. An interrupted installation retains downloaded tools for retry; success is reported only after all checks pass. See [installation and version policy](docs/usage.md#의존성-일괄-설치와-호환성-검사).
+
+Run these initial commands from the project root:
 
 ```sh
 python3 --version
@@ -71,6 +85,12 @@ Execution requests and approvals, however, bind to local absolute paths, instruc
 | `runs/` | Local execution state and evidence |
 | `dialog/` | Local question-and-answer records |
 
+## Selective publication
+
+Use `test` for development, commits, tests, and cross-review; keep `main` for stable versions selected for publication. Tags name specific commits. Local development and commits do not trigger publication: push only when the user requests it, and only to the specified destination repository and remote branch or tag. Record the exact candidate commit ID rather than relying on a moving branch tip.
+
+Before publishing, check that test and review evidence applies to the candidate, inspect its public files and outgoing history, and run the email-policy and secret checks. The hooks do not run the full regression suite. Publishing a development branch or tag does not require updating `main`. When publication includes `main`, prefer a fast-forward to the validated commit when possible; a changed code state requires fresh validation and review. Push only the requested refs and verify the remote commit IDs. Branch and tag pushes include the required ancestor history, not just the candidate's current files. See the [publication procedure](docs/sharing.md#선택적-공개-절차).
+
 ## Local records and secret scanning
 
 [.gitignore](.gitignore) excludes local dialog, approval, and execution records, generated live-test workspaces, environment files, and caches. The three record directories retain only their `.gitkeep` placeholders for sharing. Ignore rules do not remove files already tracked by Git; check the actual staged files before publishing.
@@ -113,7 +133,7 @@ The secret scanner reads Git diffs and does not extract document text. A clean s
 
 The email policy accepts GitHub noreply address formats by default, plus the exact `noreply@github.com` service address only in the committer role. This exception does not authenticate GitHub provenance. Other addresses require explicit repository-local `harness.publicEmail` entries after a public-use decision. The pre-push hook checks every outgoing commit's author and committer, plus annotated taggers. New remote refs trigger a full ancestry check; incomplete history fails closed. The checker does not print private email values, rewrite commits, or query GitHub account settings. A local policy pass does not verify address ownership or guarantee GitHub acceptance. History secret scanning remains a separate step. See the [email policy and existing-commit guidance](docs/sharing.md).
 
-Hook source files are shared through Git; each checkout still needs installation. Inspect `modules/security/` before installing. Before integrating fetched changes through merge, rebase, or checkout, review changes to this directory, including new executable hook names. For updates, fetch and review first instead of applying an unreviewed pull: an executable hook such as `post-merge` added to this configured directory can run on the corresponding Git event. CI integration remains future work. Keep credentials and actual conversation records local. See the [hook operation and sharing guidance](docs/sharing.md).
+Hook source files are shared through Git; each checkout still needs installation. Inspect `modules/security/` before installing. Before integrating fetched changes through merge, rebase, or checkout, review changes to this directory, including new executable hook names. For updates, fetch and review first instead of applying an unreviewed pull: an executable hook such as `post-merge` added to this configured directory can run on the corresponding Git event. Keep credentials and actual conversation records local. See the [hook operation and sharing guidance](docs/sharing.md).
 
 ## Development checks
 
